@@ -149,7 +149,7 @@ def detect_and_censor_video(video_path, output_path):
                 if result['score'] >= 0.0:
                     x, y, w, h = result['box']
                     # Only censor female parts
-                    if "MALE_GENITALIA_EXPOSED" not in result['class'] and "FACE_MALE" not in result['class']:
+                    if "MALE_GENITALIA_EXPOSED" != result['class'] and "FACE_MALE" != result['class']:
                         frame = pixelate_region_and_overlay_text(frame, x, y, w, h, translate_classname(result['class']))
 
         # Display the processed frame with progress bar
