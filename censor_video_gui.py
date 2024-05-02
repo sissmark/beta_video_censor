@@ -3,6 +3,7 @@ import cv2
 from nudenet import NudeDetector
 from tkinter import filedialog, Tk, Button, Label, Radiobutton, IntVar
 import tempfile
+import numpy as np
 
 # Function to pixelate the specified region of an image and overlay text
 def pixelate_region_and_overlay_text(image, x, y, w, h, text, pixel_size=75):
@@ -52,7 +53,7 @@ def pixelate_region_and_overlay_text(image, x, y, w, h, text, pixel_size=75):
     return image
 
 # Function to blur the specified region of an image and overlay text
-def blur_region_and_overlay_text(image, x, y, w, h, text, blur_amount=25):
+def blur_region_and_overlay_text(image, x, y, w, h, text, blur_amount=75):
     # Ensure that blur_amount is an odd number
     blur_amount = max(1, blur_amount)  # Ensure it's at least 1
     blur_amount = blur_amount + 1 if blur_amount % 2 == 0 else blur_amount
@@ -119,6 +120,92 @@ def invert_colors_and_overlay_text(image, x, y, w, h, text):
 
     return image
 
+# Function to apply motion blur to the specified region of an image and overlay text
+def motion_blur_and_overlay_text(image, x, y, w, h, text, blur_amount=50):
+    # Calculate the intersection of the region to apply motion blur with the image bounds
+    x1 = max(x, 0)
+    y1 = max(y, 0)
+    x2 = min(x + w, image.shape[1])
+    y2 = min(y + h, image.shape[0])
+
+    # Check if there is an intersection
+    if x1 < x2 and y1 < y2:
+        # Extract the region to apply motion blur
+        region = image[y1:y2, x1:x2]
+
+        # Apply motion blur to the region
+        kernel_size = max(1, blur_amount)  # Ensure it's at least 1
+        kernel = np.zeros((kernel_size, kernel_size))
+        kernel[int((kernel_size - 1) / 2), :] = np.ones(kernel_size)
+        kernel /= kernel_size
+        motion_blurred_region = cv2.filter2D(region, -1, kernel)
+
+        # Replace the region with the motion blurred version
+        image[y1:y2, x1:x2] = motion_blurred_region
+
+        # Calculate the position to center the text
+        font = cv2.FONT_HERSHEY_SIMPLEX
+        font_scale = 2
+        thickness = 4
+        text_size = cv2.getTextSize(text, font, font_scale, thickness)[0]
+        text_x = x1 + ((x2 - x1) - text_size[0]) // 2
+        text_y = y1 + ((y2 - y1) + text_size[1]) // 2
+
+        # Add text overlay
+        cv2.putText(image, text, (text_x, text_y), font, font_scale, (0, 0, 0), thickness)
+
+    return image
+
+# Function to apply dithering to the specified region of an image and overlay text
+def dither_and_overlay_text(image, x, y, w, h, text):
+    # Calculate the intersection of the region to apply dithering with the image bounds
+    x1 = max(x, 0)
+    y1 = max(y, 0)
+    x2 = min(x + w, image.shape[1])
+    y2 = min(y + h, image.shape[0])
+
+    # Check if there is an intersection
+    if x1 < x2 and y1 < y2:
+        # Extract the region to apply dithering
+        region = image[y1:y2, x1:x2]
+
+        # Apply dithering to the region (Floyd-Steinberg dithering algorithm)
+        dithered_region = cv2.cvtColor(region, cv2.COLOR_BGR2GRAY)
+        dithered_region = cv2.cvtColor(dithered_region, cv2.COLOR_GRAY2BGR)
+
+        for y in range(h):
+            for x in range(w):
+                old_pixel = dithered_region[y, x]
+                new_pixel = 255 if old_pixel[0] > 127 else 0
+                dithered_region[y, x] = [new_pixel, new_pixel, new_pixel]
+                quant_error = old_pixel - [new_pixel, new_pixel, new_pixel]
+
+                if x < w - 1:
+                    dithered_region[y, x + 1] = (dithered_region[y, x + 1] + quant_error * 7 // 16).clip(0, 255)
+                if y < h - 1 and x > 0:
+                    dithered_region[y + 1, x - 1] = (dithered_region[y + 1, x - 1] + quant_error * 3 // 16).clip(0, 255)
+                if y < h - 1:
+                    dithered_region[y + 1, x] = (dithered_region[y + 1, x] + quant_error * 5 // 16).clip(0, 255)
+                if y < h - 1 and x < w - 1:
+                    dithered_region[y + 1, x + 1] = (dithered_region[y + 1, x + 1] + quant_error * 1 // 16).clip(0, 255)
+
+        # Replace the region with the dithered version
+        image[y1:y2, x1:x2] = dithered_region
+
+        # Calculate the position to center the text
+        font = cv2.FONT_HERSHEY_SIMPLEX
+        font_scale = 2
+        thickness = 4
+        text_size = cv2.getTextSize(text, font, font_scale, thickness)[0]
+        text_x = x1 + ((x2 - x1) - text_size[0]) // 2
+        text_y = y1 + ((y2 - y1) + text_size[1]) // 2
+
+        # Add text overlay
+        cv2.putText(image, text, (text_x, text_y), font, font_scale, (0, 0, 0), thickness)
+
+    return image
+
+# Function to translate class names to more descriptive text
 def translate_classname(text):
     if text == "FEMALE_GENITALIA_COVERED":
         retval = "No Pussy"
@@ -225,6 +312,12 @@ def detect_and_censor_video(video_path, output_path, censor_method):
                         elif censor_method == 3:
                             # Invert colors method
                             frame = invert_colors_and_overlay_text(frame, x, y, w, h, translate_classname(result['class']))
+                        elif censor_method == 4:
+                            # Motion blur method
+                            frame = motion_blur_and_overlay_text(frame, x, y, w, h, translate_classname(result['class']))
+                        elif censor_method == 5:
+                            # Dithering method
+                            frame = dither_and_overlay_text(frame, x, y, w, h, translate_classname(result['class']))
 
         # Display the processed frame with progress bar
         progress += 1
@@ -261,7 +354,7 @@ def select_video_file():
         # Specify the output path for the censored video
         output_path = os.path.splitext(video_path)[0] + "_censored.mp4"
 
-        # Get the selected censoring method
+        # Get censoring method selection
         censor_method = censor_method_var.get()
 
         # Call the function to detect and censor explicit frames in the video and save the censored video
@@ -275,20 +368,21 @@ def select_video_file():
 # Create the main window
 root = Tk()
 root.title("Video Censorship")
-root.geometry('400x250')
+root.geometry('1024x768')
 
 # Create a button to select the video file
 Button(root, text="Select Video File", command=select_video_file).pack()
 
-# Create radio buttons to select censoring method
+# Create radio buttons for censoring methods
 censor_method_var = IntVar()
-censor_method_var.set(1)  # Default to pixelation method
-pixelation_radio = Radiobutton(root, text="Pixelation", variable=censor_method_var, value=1)
-pixelation_radio.pack()
-blurring_radio = Radiobutton(root, text="Blurring", variable=censor_method_var, value=2)
-blurring_radio.pack()
-color_inversion_radio = Radiobutton(root, text="Color Inversion", variable=censor_method_var, value=3)
-color_inversion_radio.pack()
+censor_method_var.set(1)  # Default selection is Pixelation method
+
+Label(root, text="Censoring Method:").pack()
+Radiobutton(root, text="Pixelation", variable=censor_method_var, value=1).pack()
+Radiobutton(root, text="Blurring", variable=censor_method_var, value=2).pack()
+Radiobutton(root, text="Invert Colors", variable=censor_method_var, value=3).pack()
+Radiobutton(root, text="Motion Blur", variable=censor_method_var, value=4).pack()
+#removed, too slow: Radiobutton(root, text="Dithering", variable=censor_method_var, value=5).pack()
 
 # Run the main event loop
 root.mainloop()
