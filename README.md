@@ -1,5 +1,7 @@
 # beta video censor
 This script will censor female nsfw parts in videos using the nudenet ai model.
+I tested it using Python 3.12.
+
 Once downloaded
 
 install requirements: #pip install -r requirements.txt
