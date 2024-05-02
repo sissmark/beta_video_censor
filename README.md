@@ -1,4 +1,8 @@
 # beta video censor
+
+New tool to censor your videos! 
+Looking for input and testers! 
+
 This script will censor female nsfw parts in videos using the nudenet ai model.
 I tested it using Python 3.12.
 
@@ -8,7 +12,7 @@ install requirements: #pip install -r requirements.txt
 
 run the script: #python censor_video_gui.py
 
-This should open a window alowing you to select a video file.
+This should open a window allowing you to select a video file.
 Once selected the script will show a preview of the censoring process and when finished store the video as [video_name]_censored.mp4
 
 Things on my mind:
