@@ -155,7 +155,7 @@ def detect_and_censor_video(video_path, output_path):
         # Display the processed frame with progress bar
         progress += 1
         progress_width = int((progress / total_frames) * width)
-        cv2.rectangle(frame, (0, height - 30), (progress_width, height), (0, 255, 0), -1)
+        cv2.rectangle(frame, (0, height - 1), (progress_width, height), (0, 255, 0), -1)
         cv2.imshow("Processed Frame", frame)
         cv2.waitKey(1)
 
