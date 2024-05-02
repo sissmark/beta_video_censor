@@ -6,7 +6,7 @@ import tempfile
 
 
 # Function to pixelate the specified region of an image and overlay text
-def pixelate_region_and_overlay_text(image, x, y, w, h, text, pixel_size=25):
+def pixelate_region_and_overlay_text(image, x, y, w, h, text, pixel_size=75):
     # Calculate the intersection of the region to pixelate with the image bounds
     x1 = max(x, 0)
     y1 = max(y, 0)
