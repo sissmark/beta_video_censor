@@ -6,7 +6,7 @@ Looking for input and testers!
 This script will censor female nsfw parts in videos using the nudenet ai model.
 I tested it using Python 3.12.
 
-1. Download here: Downoad here: https://github.com/sissmark/beta_video_censor/archive/refs/heads/main.zip
+1. Download here: https://github.com/sissmark/beta_video_censor/archive/refs/heads/main.zip
 2. Install requirements: #pip install -r requirements.txt
 3. Run the script: #python censor_video_gui.py
 
