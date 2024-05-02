@@ -1,6 +1,7 @@
 # beta video censor
 
-New tool to censor your videos! https://github.com/sissmark/beta_video_censor…Looking for input and testers! #sissysafe #betasafe #sissycensored #betacensored #loserporn #censoredporn
+New tool to censor your videos! 
+Looking for input and testers! #sissysafe #betasafe #sissycensored #betacensored #loserporn #censoredporn
 
 This script will censor female nsfw parts in videos using the nudenet ai model.
 I tested it using Python 3.12.
