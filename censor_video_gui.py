@@ -1,9 +1,8 @@
 import os
 import cv2
 from nudenet import NudeDetector
-from tkinter import filedialog, Tk, Button, Label
+from tkinter import filedialog, Tk, Button, Label, Radiobutton, IntVar
 import tempfile
-
 
 # Function to pixelate the specified region of an image and overlay text
 def pixelate_region_and_overlay_text(image, x, y, w, h, text, pixel_size=75):
@@ -52,6 +51,73 @@ def pixelate_region_and_overlay_text(image, x, y, w, h, text, pixel_size=75):
 
     return image
 
+# Function to blur the specified region of an image and overlay text
+def blur_region_and_overlay_text(image, x, y, w, h, text, blur_amount=25):
+    # Ensure that blur_amount is an odd number
+    blur_amount = max(1, blur_amount)  # Ensure it's at least 1
+    blur_amount = blur_amount + 1 if blur_amount % 2 == 0 else blur_amount
+
+    # Calculate the intersection of the region to blur with the image bounds
+    x1 = max(x, 0)
+    y1 = max(y, 0)
+    x2 = min(x + w, image.shape[1])
+    y2 = min(y + h, image.shape[0])
+
+    # Check if there is an intersection
+    if x1 < x2 and y1 < y2:
+        # Extract the region to blur
+        region = image[y1:y2, x1:x2]
+
+        # Apply Gaussian blur to the region
+        blurred_region = cv2.GaussianBlur(region, (blur_amount, blur_amount), 0)
+
+        # Replace the region with the blurred version
+        image[y1:y2, x1:x2] = blurred_region
+
+        # Calculate the position to center the text
+        font = cv2.FONT_HERSHEY_SIMPLEX
+        font_scale = 2
+        thickness = 4
+        text_size = cv2.getTextSize(text, font, font_scale, thickness)[0]
+        text_x = x1 + ((x2 - x1) - text_size[0]) // 2
+        text_y = y1 + ((y2 - y1) + text_size[1]) // 2
+
+        # Add text overlay
+        cv2.putText(image, text, (text_x, text_y), font, font_scale, (0, 0, 0), thickness)
+
+    return image
+
+# Function to invert colors of the specified region of an image and overlay text
+def invert_colors_and_overlay_text(image, x, y, w, h, text):
+    # Calculate the intersection of the region to invert colors with the image bounds
+    x1 = max(x, 0)
+    y1 = max(y, 0)
+    x2 = min(x + w, image.shape[1])
+    y2 = min(y + h, image.shape[0])
+
+    # Check if there is an intersection
+    if x1 < x2 and y1 < y2:
+        # Extract the region to invert colors
+        region = image[y1:y2, x1:x2]
+
+        # Invert colors in the region
+        inverted_region = cv2.bitwise_not(region)
+
+        # Replace the region with the inverted version
+        image[y1:y2, x1:x2] = inverted_region
+
+        # Calculate the position to center the text
+        font = cv2.FONT_HERSHEY_SIMPLEX
+        font_scale = 2
+        thickness = 4
+        text_size = cv2.getTextSize(text, font, font_scale, thickness)[0]
+        text_x = x1 + ((x2 - x1) - text_size[0]) // 2
+        text_y = y1 + ((y2 - y1) + text_size[1]) // 2
+
+        # Add text overlay
+        cv2.putText(image, text, (text_x, text_y), font, font_scale, (0, 0, 0), thickness)
+
+    return image
 
 def translate_classname(text):
     if text == "FEMALE_GENITALIA_COVERED":
@@ -94,9 +160,8 @@ def translate_classname(text):
         retval = "Censored"
     return retval
 
-
 # Function to detect and censor explicit frames in a video and save the censored video
-def detect_and_censor_video(video_path, output_path):
+def detect_and_censor_video(video_path, output_path, censor_method):
     # Initialize the NudeDetector
     detector = NudeDetector()
 
@@ -148,9 +213,16 @@ def detect_and_censor_video(video_path, output_path):
             for result in results:
                 if result['score'] >= 0.0:
                     x, y, w, h = result['box']
-                    # Only censor female parts
-                    if "MALE_GENITALIA_EXPOSED" != result['class'] and "FACE_MALE" != result['class']:
+                    # Select censoring method
+                    if censor_method == 1:
+                        # Pixelation method
                         frame = pixelate_region_and_overlay_text(frame, x, y, w, h, translate_classname(result['class']))
+                    elif censor_method == 2:
+                        # Blurring method
+                        frame = blur_region_and_overlay_text(frame, x, y, w, h, translate_classname(result['class']))
+                    elif censor_method == 3:
+                        # Invert colors method
+                        frame = invert_colors_and_overlay_text(frame, x, y, w, h, translate_classname(result['class']))
 
         # Display the processed frame with progress bar
         progress += 1
@@ -175,7 +247,6 @@ def detect_and_censor_video(video_path, output_path):
     # Destroy the OpenCV window
     cv2.destroyAllWindows()
 
-
 # Function to handle the button click event
 def select_video_file():
     root = Tk()
@@ -188,22 +259,34 @@ def select_video_file():
         # Specify the output path for the censored video
         output_path = os.path.splitext(video_path)[0] + "_censored.mp4"
 
+        # Get the selected censoring method
+        censor_method = censor_method_var.get()
+
         # Call the function to detect and censor explicit frames in the video and save the censored video
-        detect_and_censor_video(video_path, output_path)
+        detect_and_censor_video(video_path, output_path, censor_method)
 
         # Display a message when processing is complete
         Label(root, text="Video censorship completed.").pack()
 
     root.mainloop()
 
-
 # Create the main window
 root = Tk()
 root.title("Video Censorship")
-root.geometry('1024x768')
+root.geometry('400x250')
 
 # Create a button to select the video file
 Button(root, text="Select Video File", command=select_video_file).pack()
+
+# Create radio buttons to select censoring method
+censor_method_var = IntVar()
+censor_method_var.set(1)  # Default to pixelation method
+pixelation_radio = Radiobutton(root, text="Pixelation", variable=censor_method_var, value=1)
+pixelation_radio.pack()
+blurring_radio = Radiobutton(root, text="Blurring", variable=censor_method_var, value=2)
+blurring_radio.pack()
+color_inversion_radio = Radiobutton(root, text="Color Inversion", variable=censor_method_var, value=3)
+color_inversion_radio.pack()
 
 # Run the main event loop
 root.mainloop()
