@@ -25,4 +25,3 @@ Things on my mind:
 - A better gui / install / run experience.
 
 Let me know what you think!
-#sissysafe #betasafe #sissycensored #betacensored #loserporn #censoredporn
