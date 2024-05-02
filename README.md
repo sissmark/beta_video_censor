@@ -8,7 +8,7 @@ install requirements: #pip install -r requirements.txt
 
 run the script: #python censor_video_gui.py
 
-This should open a window alowing you to select a video file.
+This should open a window allowing you to select a video file.
 Once selected the script will show a preview of the censoring process and when finished store the video as [video_name]_censored.mp4
 
 Things on my mind:
