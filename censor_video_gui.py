@@ -213,16 +213,18 @@ def detect_and_censor_video(video_path, output_path, censor_method):
             for result in results:
                 if result['score'] >= 0.0:
                     x, y, w, h = result['box']
-                    # Select censoring method
-                    if censor_method == 1:
-                        # Pixelation method
-                        frame = pixelate_region_and_overlay_text(frame, x, y, w, h, translate_classname(result['class']))
-                    elif censor_method == 2:
-                        # Blurring method
-                        frame = blur_region_and_overlay_text(frame, x, y, w, h, translate_classname(result['class']))
-                    elif censor_method == 3:
-                        # Invert colors method
-                        frame = invert_colors_and_overlay_text(frame, x, y, w, h, translate_classname(result['class']))
+                    # Only censor female parts
+                    if "MALE_GENITALIA_EXPOSED" != result['class'] and "FACE_MALE" != result['class']:
+                        # Select censoring method
+                        if censor_method == 1:
+                            # Pixelation method
+                            frame = pixelate_region_and_overlay_text(frame, x, y, w, h, translate_classname(result['class']))
+                        elif censor_method == 2:
+                            # Blurring method
+                            frame = blur_region_and_overlay_text(frame, x, y, w, h, translate_classname(result['class']))
+                        elif censor_method == 3:
+                            # Invert colors method
+                            frame = invert_colors_and_overlay_text(frame, x, y, w, h, translate_classname(result['class']))
 
         # Display the processed frame with progress bar
         progress += 1
