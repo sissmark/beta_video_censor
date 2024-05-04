@@ -1,12 +1,38 @@
+#todo
+# resolution selection
+# cancel current censoring process
+# select output file
+# copy audio
+# implement audio filters (muffling)
+
 import os
 import cv2
 from nudenet import NudeDetector
-from tkinter import filedialog, Tk, Button, Label, Radiobutton, IntVar
+from tkinter import filedialog, Tk, Button, Label, Radiobutton, IntVar, ttk
 import tempfile
 import numpy as np
+from PIL import Image, ImageTk
+
+continue_censoring = True
+
+# Function to display the logo
+def display_logo():
+    logo_path = "logo.png"  # Path to your logo image
+    logo_image = Image.open(logo_path)
+    # Resize the logo to 640x480 pixels
+    logo_image = logo_image.resize((640, 480))
+    logo_photo = ImageTk.PhotoImage(logo_image)
+    logo_label = Label(root, image=logo_photo, borderwidth=0, padx=0, pady=0)
+    logo_label.image = logo_photo
+    logo_label.pack(pady=(0,20))
+
+# Function to quit the application
+def quit_application():
+    root.quit()
+
 
 # Function to pixelate the specified region of an image and overlay text
-def pixelate_region_and_overlay_text(image, x, y, w, h, text, pixel_size=75):
+def pixelate_region_and_overlay_text(image, x, y, w, h, text, pixel_size=50):
     # Calculate the intersection of the region to pixelate with the image bounds
     x1 = max(x, 0)
     y1 = max(y, 0)
@@ -53,7 +79,7 @@ def pixelate_region_and_overlay_text(image, x, y, w, h, text, pixel_size=75):
     return image
 
 # Function to blur the specified region of an image and overlay text
-def blur_region_and_overlay_text(image, x, y, w, h, text, blur_amount=75):
+def blur_region_and_overlay_text(image, x, y, w, h, text, blur_amount=100):
     # Ensure that blur_amount is an odd number
     blur_amount = max(1, blur_amount)  # Ensure it's at least 1
     blur_amount = blur_amount + 1 if blur_amount % 2 == 0 else blur_amount
@@ -248,7 +274,8 @@ def translate_classname(text):
     return retval
 
 # Function to detect and censor explicit frames in a video and save the censored video
-def detect_and_censor_video(video_path, output_path, censor_method):
+def detect_and_censor_video(video_path, output_path, censor_method, resolution=1):
+    global continue_censoring
     # Initialize the NudeDetector
     detector = NudeDetector()
 
@@ -260,14 +287,22 @@ def detect_and_censor_video(video_path, output_path, censor_method):
         print("Error: Unable to open video file.")
         return
 
+    # Get the frame rate of the original video
+    fps = cap.get(cv2.CAP_PROP_FPS)
+
     # Get the video frame properties
     width = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
     height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
-    fps = int(cap.get(cv2.CAP_PROP_FPS))
+
+    # Get the codec of the original video
+    codec = int(cap.get(cv2.CAP_PROP_FOURCC))
+
+    # Calculate the new dimensions for resizing
+    new_width = int(width * resolution)
+    new_height = int(height * resolution)
 
     # Create a VideoWriter object to write the censored frames to a new video file
-    fourcc = cv2.VideoWriter_fourcc(*'mp4v')  # Codec for the output video
-    out = cv2.VideoWriter(output_path, fourcc, fps, (width, height))
+    out = cv2.VideoWriter(output_path, codec, fps, (new_width, new_height))
 
     # Create a temporary directory to save the video frames
     temp_dir = tempfile.TemporaryDirectory()
@@ -280,12 +315,15 @@ def detect_and_censor_video(video_path, output_path, censor_method):
     progress = 0
 
     # Iterate through each frame
-    while True:
+    while continue_censoring:
         # Read the frame
         success, frame = cap.read()
 
         if not success:
             break
+
+        # Resize the frame to the specified resolution
+        frame = cv2.resize(frame, (new_width, new_height))
 
         # Save the frame as a temporary image file
         temp_image_path = os.path.join(temp_dir.name, "temp_frame.jpg")
@@ -301,29 +339,37 @@ def detect_and_censor_video(video_path, output_path, censor_method):
                 if result['score'] >= 0.0:
                     x, y, w, h = result['box']
                     # Only censor female parts
-                    if "MALE_GENITALIA_EXPOSED" != result['class'] and "FACE_MALE" != result['class']:
+                    if "MALE_BREAST_EXPOSED" != result['class'] and "MALE_GENITALIA_EXPOSED" != result[
+                        'class'] and "FACE_MALE" != result['class']:
                         # Select censoring method
                         if censor_method == 1:
                             # Pixelation method
-                            frame = pixelate_region_and_overlay_text(frame, x, y, w, h, translate_classname(result['class']))
+                            frame = pixelate_region_and_overlay_text(frame, x, y, w, h,
+                                                                      translate_classname(result['class']))
                         elif censor_method == 2:
                             # Blurring method
-                            frame = blur_region_and_overlay_text(frame, x, y, w, h, translate_classname(result['class']))
+                            frame = blur_region_and_overlay_text(frame, x, y, w, h,
+                                                                 translate_classname(result['class']))
                         elif censor_method == 3:
                             # Invert colors method
-                            frame = invert_colors_and_overlay_text(frame, x, y, w, h, translate_classname(result['class']))
+                            frame = invert_colors_and_overlay_text(frame, x, y, w, h,
+                                                                    translate_classname(result['class']))
                         elif censor_method == 4:
                             # Motion blur method
-                            frame = motion_blur_and_overlay_text(frame, x, y, w, h, translate_classname(result['class']))
+                            frame = motion_blur_and_overlay_text(frame, x, y, w, h,
+                                                                  translate_classname(result['class']))
                         elif censor_method == 5:
                             # Dithering method
-                            frame = dither_and_overlay_text(frame, x, y, w, h, translate_classname(result['class']))
+                            frame = dither_and_overlay_text(frame, x, y, w, h,
+                                                            translate_classname(result['class']))
 
         # Display the processed frame with progress bar
         progress += 1
-        progress_width = int((progress / total_frames) * width)
-        cv2.rectangle(frame, (0, height - 1), (progress_width, height), (0, 255, 0), -1)
+        progress_width = int((progress / total_frames) * new_width)
+        cv2.rectangle(frame, (0, new_height - 1), (progress_width, new_height), (0, 255, 0), -1)
         cv2.imshow("Processed Frame", frame)
+        cv2.setWindowTitle("Processed Frame", "Frame: " + str(progress) + "/" + str(total_frames))
+
         cv2.waitKey(1)
 
         # Write the censored frame to the output video file
@@ -341,6 +387,9 @@ def detect_and_censor_video(video_path, output_path, censor_method):
 
     # Destroy the OpenCV window
     cv2.destroyAllWindows()
+
+
+
 
 # Function to handle the button click event
 def select_video_file():
@@ -368,7 +417,11 @@ def select_video_file():
 # Create the main window
 root = Tk()
 root.title("Video Censorship")
-root.geometry('1024x768')
+root.geometry('640x700')
+root.configure()
+
+# Call the function to display the logo
+display_logo()
 
 # Create a button to select the video file
 Button(root, text="Select Video File", command=select_video_file).pack()
@@ -378,11 +431,16 @@ censor_method_var = IntVar()
 censor_method_var.set(1)  # Default selection is Pixelation method
 
 Label(root, text="Censoring Method:").pack()
+
+# Create radio buttons for censoring methods with background color #962A49
 Radiobutton(root, text="Pixelation", variable=censor_method_var, value=1).pack()
 Radiobutton(root, text="Blurring", variable=censor_method_var, value=2).pack()
 Radiobutton(root, text="Invert Colors", variable=censor_method_var, value=3).pack()
 Radiobutton(root, text="Motion Blur", variable=censor_method_var, value=4).pack()
 #removed, too slow: Radiobutton(root, text="Dithering", variable=censor_method_var, value=5).pack()
+
+# Create a button to quit the application
+Button(root, text="Quit", command=quit_application).pack()
 
 # Run the main event loop
 root.mainloop()
